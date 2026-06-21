@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>Creator Dimensions Rebuild</title>
+<title>Creator Dimensions Save System</title>
 
 <script src="https://cdn.jsdelivr.net/npm/decimal.js@10.4.3/decimal.min.js"></script>
 
@@ -39,39 +39,219 @@ button:hover{
 }
 </style>
 </head>
+
 <body>
 
 <h1>Creator Dimensions</h1>
 
 <div class="panel">
-    <h2>Matter</h2>
-    <div id="matter"></div>
-    <div id="inDisplay"></div>
+<h2>Matter</h2>
+<div id="matter"></div>
+<div id="inDisplay"></div>
 </div>
 
 <div class="panel">
-    <h2>Infinity Energy</h2>
-    <div id="ieDisplay"></div>
+<h2>Infinity Energy</h2>
+<div id="ieDisplay"></div>
 
-    <button onclick="buyUpgrade(0)">Upgrade 1 (1 IE)</button>
-    <button onclick="buyUpgrade(1)">Upgrade 2 (5 IE)</button>
-    <button onclick="buyUpgrade(2)">Upgrade 3 (20 IE)</button>
-    <button onclick="buyUpgrade(3)">Upgrade 4 (100 IE)</button>
+<button onclick="buyUpgrade(0)">Upgrade 1</button>
+<button onclick="buyUpgrade(1)">Upgrade 2</button>
+<button onclick="buyUpgrade(2)">Upgrade 3</button>
+<button onclick="buyUpgrade(3)">Upgrade 4</button>
 </div>
 
 <div class="panel">
-    <h2>Creators</h2>
-    <div id="creators"></div>
+<h2>Creators</h2>
+<div id="creators"></div>
 </div>
 
 <div class="panel">
-    <h2>Generators</h2>
-    <div id="generators"></div>
+<h2>Generators</h2>
+<div id="generators"></div>
 </div>
 
 <script>
 
-const IN_BASE = new Decimal("1e308");
+/* =========================
+   IndexedDB
+========================= */
+
+const DB_NAME = "creator_dimensions_db";
+const STORE_NAME = "save";
+let db;
+
+function openDB(){
+    const req = indexedDB.open(DB_NAME, 1);
+
+    req.onupgradeneeded = function(e){
+        db = e.target.result;
+        db.createObjectStore(STORE_NAME);
+    };
+
+    req.onsuccess = function(e){
+        db = e.target.result;
+        loadGame();
+    };
+}
+
+function saveGame(){
+
+    if(!db) return;
+
+    const data = {
+        matter: matter.toString(),
+        infinityEnergy: infinityEnergy.toString(),
+        upgrades: upgrades,
+
+        creators:{
+            c1:{a:creators.c1.amount.toString(), b:creators.c1.bought.toString(), c:creators.c1.cost.toString()},
+            c2:{a:creators.c2.amount.toString(), b:creators.c2.bought.toString(), c:creators.c2.cost.toString()},
+            c3:{a:creators.c3.amount.toString(), b:creators.c3.bought.toString(), c:creators.c3.cost.toString()},
+            c4:{a:creators.c4.amount.toString(), b:creators.c4.bought.toString(), c:creators.c4.cost.toString()},
+            c5:{a:creators.c5.amount.toString(), b:creators.c5.bought.toString(), c:creators.c5.cost.toString()},
+            c6:{a:creators.c6.amount.toString(), b:creators.c6.bought.toString(), c:creators.c6.cost.toString()},
+            c7:{a:creators.c7.amount.toString(), b:creators.c7.bought.toString(), c:creators.c7.cost.toString()},
+            c8:{a:creators.c8.amount.toString(), b:creators.c8.bought.toString(), c:creators.c8.cost.toString()},
+            c9:{a:creators.c9.amount.toString(), b:creators.c9.bought.toString(), c:creators.c9.cost.toString()},
+            c10:{a:creators.c10.amount.toString(), b:creators.c10.bought.toString(), c:creators.c10.cost.toString()},
+            c11:{a:creators.c11.amount.toString(), b:creators.c11.bought.toString(), c:creators.c11.cost.toString()},
+            c12:{a:creators.c12.amount.toString(), b:creators.c12.bought.toString(), c:creators.c12.cost.toString()},
+            c13:{a:creators.c13.amount.toString(), b:creators.c13.bought.toString(), c:creators.c13.cost.toString()},
+            c14:{a:creators.c14.amount.toString(), b:creators.c14.bought.toString(), c:creators.c14.cost.toString()},
+            c15:{a:creators.c15.amount.toString(), b:creators.c15.bought.toString(), c:creators.c15.cost.toString()}
+        },
+
+        generators:{
+            g1:{a:generators.g1.amount.toString(), b:generators.g1.bought.toString(), c:generators.g1.cost.toString()},
+            g2:{a:generators.g2.amount.toString(), b:generators.g2.bought.toString(), c:generators.g2.cost.toString()},
+            g3:{a:generators.g3.amount.toString(), b:generators.g3.bought.toString(), c:generators.g3.cost.toString()},
+            g4:{a:generators.g4.amount.toString(), b:generators.g4.bought.toString(), c:generators.g4.cost.toString()},
+            g5:{a:generators.g5.amount.toString(), b:generators.g5.bought.toString(), c:generators.g5.cost.toString()},
+            g6:{a:generators.g6.amount.toString(), b:generators.g6.bought.toString(), c:generators.g6.cost.toString()},
+            g7:{a:generators.g7.amount.toString(), b:generators.g7.bought.toString(), c:generators.g7.cost.toString()},
+            g8:{a:generators.g8.amount.toString(), b:generators.g8.bought.toString(), c:generators.g8.cost.toString()}
+        }
+    };
+
+    const tx = db.transaction(STORE_NAME,"readwrite");
+    const store = tx.objectStore(STORE_NAME);
+    store.put(data,"main");
+}
+
+function loadGame(){
+
+    const tx = db.transaction(STORE_NAME,"readonly");
+    const store = tx.objectStore(STORE_NAME);
+    const req = store.get("main");
+
+    req.onsuccess = function(){
+
+        const d = req.result;
+        if(!d) return;
+
+        matter = new Decimal(d.matter);
+        infinityEnergy = new Decimal(d.infinityEnergy);
+        for(let i=0;i<4;i++) upgrades[i] = d.upgrades[i];
+
+        creators.c1.amount = new Decimal(d.creators.c1.a);
+        creators.c1.bought = new Decimal(d.creators.c1.b);
+        creators.c1.cost = new Decimal(d.creators.c1.c);
+
+        creators.c2.amount = new Decimal(d.creators.c2.a);
+        creators.c2.bought = new Decimal(d.creators.c2.b);
+        creators.c2.cost = new Decimal(d.creators.c2.c);
+
+        creators.c3.amount = new Decimal(d.creators.c3.a);
+        creators.c3.bought = new Decimal(d.creators.c3.b);
+        creators.c3.cost = new Decimal(d.creators.c3.c);
+
+        creators.c4.amount = new Decimal(d.creators.c4.a);
+        creators.c4.bought = new Decimal(d.creators.c4.b);
+        creators.c4.cost = new Decimal(d.creators.c4.c);
+
+        creators.c5.amount = new Decimal(d.creators.c5.a);
+        creators.c5.bought = new Decimal(d.creators.c5.b);
+        creators.c5.cost = new Decimal(d.creators.c5.c);
+
+        creators.c6.amount = new Decimal(d.creators.c6.a);
+        creators.c6.bought = new Decimal(d.creators.c6.b);
+        creators.c6.cost = new Decimal(d.creators.c6.c);
+
+        creators.c7.amount = new Decimal(d.creators.c7.a);
+        creators.c7.bought = new Decimal(d.creators.c7.b);
+        creators.c7.cost = new Decimal(d.creators.c7.c);
+
+        creators.c8.amount = new Decimal(d.creators.c8.a);
+        creators.c8.bought = new Decimal(d.creators.c8.b);
+        creators.c8.cost = new Decimal(d.creators.c8.c);
+
+        creators.c9.amount = new Decimal(d.creators.c9.a);
+        creators.c9.bought = new Decimal(d.creators.c9.b);
+        creators.c9.cost = new Decimal(d.creators.c9.c);
+
+        creators.c10.amount = new Decimal(d.creators.c10.a);
+        creators.c10.bought = new Decimal(d.creators.c10.b);
+        creators.c10.cost = new Decimal(d.creators.c10.c);
+
+        creators.c11.amount = new Decimal(d.creators.c11.a);
+        creators.c11.bought = new Decimal(d.creators.c11.b);
+        creators.c11.cost = new Decimal(d.creators.c11.c);
+
+        creators.c12.amount = new Decimal(d.creators.c12.a);
+        creators.c12.bought = new Decimal(d.creators.c12.b);
+        creators.c12.cost = new Decimal(d.creators.c12.c);
+
+        creators.c13.amount = new Decimal(d.creators.c13.a);
+        creators.c13.bought = new Decimal(d.creators.c13.b);
+        creators.c13.cost = new Decimal(d.creators.c13.c);
+
+        creators.c14.amount = new Decimal(d.creators.c14.a);
+        creators.c14.bought = new Decimal(d.creators.c14.b);
+        creators.c14.cost = new Decimal(d.creators.c14.c);
+
+        creators.c15.amount = new Decimal(d.creators.c15.a);
+        creators.c15.bought = new Decimal(d.creators.c15.b);
+        creators.c15.cost = new Decimal(d.creators.c15.c);
+
+        generators.g1.amount = new Decimal(d.generators.g1.a);
+        generators.g1.bought = new Decimal(d.generators.g1.b);
+        generators.g1.cost = new Decimal(d.generators.g1.c);
+
+        generators.g2.amount = new Decimal(d.generators.g2.a);
+        generators.g2.bought = new Decimal(d.generators.g2.b);
+        generators.g2.cost = new Decimal(d.generators.g2.c);
+
+        generators.g3.amount = new Decimal(d.generators.g3.a);
+        generators.g3.bought = new Decimal(d.generators.g3.b);
+        generators.g3.cost = new Decimal(d.generators.g3.c);
+
+        generators.g4.amount = new Decimal(d.generators.g4.a);
+        generators.g4.bought = new Decimal(d.generators.g4.b);
+        generators.g4.cost = new Decimal(d.generators.g4.c);
+
+        generators.g5.amount = new Decimal(d.generators.g5.a);
+        generators.g5.bought = new Decimal(d.generators.g5.b);
+        generators.g5.cost = new Decimal(d.generators.g5.c);
+
+        generators.g6.amount = new Decimal(d.generators.g6.a);
+        generators.g6.bought = new Decimal(d.generators.g6.b);
+        generators.g6.cost = new Decimal(d.generators.g6.c);
+
+        generators.g7.amount = new Decimal(d.generators.g7.a);
+        generators.g7.bought = new Decimal(d.generators.g7.b);
+        generators.g7.cost = new Decimal(d.generators.g7.c);
+
+        generators.g8.amount = new Decimal(d.generators.g8.a);
+        generators.g8.bought = new Decimal(d.generators.g8.b);
+        generators.g8.cost = new Decimal(d.generators.g8.c);
+
+        updateUI();
+    };
+}
+
+/* =========================
+   STATE
+========================= */
 
 let matter = new Decimal(10);
 let infinityEnergy = new Decimal(0);
@@ -79,39 +259,45 @@ let infinityEnergy = new Decimal(0);
 const upgrades = [false,false,false,false];
 
 const creators = {
-    c1:  {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e1")},
-    c2:  {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e2")},
-    c3:  {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e3")},
-    c4:  {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e4")},
-    c5:  {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e5")},
-    c6:  {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e6")},
-    c7:  {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e7")},
-    c8:  {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e8")},
-    c9:  {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e9")},
-    c10: {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e10")},
-    c11: {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e15")},
-    c12: {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e20")},
-    c13: {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e25")},
-    c14: {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e35")},
-    c15: {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e50")}
+c1:{amount:new Decimal(0),bought:new Decimal(0),cost:new Decimal("1e1")},
+c2:{amount:new Decimal(0),bought:new Decimal(0),cost:new Decimal("1e2")},
+c3:{amount:new Decimal(0),bought:new Decimal(0),cost:new Decimal("1e3")},
+c4:{amount:new Decimal(0),bought:new Decimal(0),cost:new Decimal("1e4")},
+c5:{amount:new Decimal(0),bought:new Decimal(0),cost:new Decimal("1e5")},
+c6:{amount:new Decimal(0),bought:new Decimal(0),cost:new Decimal("1e6")},
+c7:{amount:new Decimal(0),bought:new Decimal(0),cost:new Decimal("1e7")},
+c8:{amount:new Decimal(0),bought:new Decimal(0),cost:new Decimal("1e8")},
+c9:{amount:new Decimal(0),bought:new Decimal(0),cost:new Decimal("1e9")},
+c10:{amount:new Decimal(0),bought:new Decimal(0),cost:new Decimal("1e10")},
+c11:{amount:new Decimal(0),bought:new Decimal(0),cost:new Decimal("1e15")},
+c12:{amount:new Decimal(0),bought:new Decimal(0),cost:new Decimal("1e20")},
+c13:{amount:new Decimal(0),bought:new Decimal(0),cost:new Decimal("1e25")},
+c14:{amount:new Decimal(0),bought:new Decimal(0),cost:new Decimal("1e35")},
+c15:{amount:new Decimal(0),bought:new Decimal(0),cost:new Decimal("1e50")}
 };
 
 const generators = {
-    g1: {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e1")},
-    g2: {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e2")},
-    g3: {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e4")},
-    g4: {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e6")},
-    g5: {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e10")},
-    g6: {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e15")},
-    g7: {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e25")},
-    g8: {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e40")}
+g1:{amount:new Decimal(0),bought:new Decimal(0),cost:new Decimal("1e1")},
+g2:{amount:new Decimal(0),bought:new Decimal(0),cost:new Decimal("1e2")},
+g3:{amount:new Decimal(0),bought:new Decimal(0),cost:new Decimal("1e4")},
+g4:{amount:new Decimal(0),bought:new Decimal(0),cost:new Decimal("1e6")},
+g5:{amount:new Decimal(0),bought:new Decimal(0),cost:new Decimal("1e10")},
+g6:{amount:new Decimal(0),bought:new Decimal(0),cost:new Decimal("1e15")},
+g7:{amount:new Decimal(0),bought:new Decimal(0),cost:new Decimal("1e25")},
+g8:{amount:new Decimal(0),bought:new Decimal(0),cost:new Decimal("1e40")}
 };
+
+/* =========================
+   LOGIC
+========================= */
+
+const IN_BASE = new Decimal("1e308");
 
 function format(x){
     x = new Decimal(x);
     if(x.eq(0)) return "0";
     if(x.lt(IN_BASE)) return x.toExponential(3);
-    return x.div(IN_BASE).toExponential(3) + " In";
+    return x.div(IN_BASE).toExponential(3)+" In";
 }
 
 function getInAmount(){
@@ -138,7 +324,8 @@ function costMultiplier(){
     return upgrades[1] ? new Decimal(0.5) : new Decimal(1);
 }
 
-/* BUY FUNCTIONS */
+/* BUY */
+
 function buyCreator(c){
     if(matter.gte(c.cost)){
         matter = matter.minus(c.cost);
@@ -184,22 +371,23 @@ function buyUpgrade(i){
     }
 }
 
-/* GAME LOOP */
+/* =========================
+   GAME LOOP
+========================= */
+
 function gameTick(){
 
     const m = creatorMultiplier();
 
-    // generators -> creators
-    creators.c15.amount = creators.c15.amount.plus(generators.g8.amount.times(m).times(0.01));
-    creators.c14.amount = creators.c14.amount.plus(generators.g7.amount.times(m).times(0.01));
-    creators.c13.amount = creators.c13.amount.plus(generators.g6.amount.times(m).times(0.01));
-    creators.c12.amount = creators.c12.amount.plus(generators.g5.amount.times(m).times(0.01));
-    creators.c11.amount = creators.c11.amount.plus(generators.g4.amount.times(m).times(0.01));
-    creators.c10.amount = creators.c10.amount.plus(generators.g3.amount.times(m).times(0.01));
-    creators.c9.amount  = creators.c9.amount.plus(generators.g2.amount.times(m).times(0.01));
-    creators.c8.amount  = creators.c8.amount.plus(generators.g1.amount.times(m).times(0.01));
+    creators.c14.amount = creators.c14.amount.plus(generators.g8.amount.times(m).times(0.01));
+    creators.c13.amount = creators.c13.amount.plus(generators.g7.amount.times(m).times(0.01));
+    creators.c12.amount = creators.c12.amount.plus(generators.g6.amount.times(m).times(0.01));
+    creators.c11.amount = creators.c11.amount.plus(generators.g5.amount.times(m).times(0.01));
+    creators.c10.amount = creators.c10.amount.plus(generators.g4.amount.times(m).times(0.01));
+    creators.c9.amount = creators.c9.amount.plus(generators.g3.amount.times(m).times(0.01));
+    creators.c8.amount = creators.c8.amount.plus(generators.g2.amount.times(m).times(0.01));
+    creators.c7.amount = creators.c7.amount.plus(generators.g1.amount.times(m).times(0.01));
 
-    // creators chain
     creators.c1.amount = creators.c1.amount.plus(creators.c2.amount.times(m).times(0.1));
     creators.c2.amount = creators.c2.amount.plus(creators.c3.amount.times(m).times(0.1));
     creators.c3.amount = creators.c3.amount.plus(creators.c4.amount.times(m).times(0.1));
@@ -219,64 +407,61 @@ function gameTick(){
 
     gainInfinityEnergy();
     updateUI();
+    saveGame();
 }
 
-/* UI */
+/* =========================
+   UI
+========================= */
+
 function updateUI(){
 
-    document.getElementById("matter").innerText =
-        "Matter: " + format(matter);
+document.getElementById("matter").innerText =
+"Matter: " + format(matter);
 
-    document.getElementById("inDisplay").innerText =
-        "In: " + format(getInAmount());
+document.getElementById("inDisplay").innerText =
+"In: " + format(getInAmount());
 
-    document.getElementById("ieDisplay").innerText =
-        "IE: " + infinityEnergy.toFixed(0);
+document.getElementById("ieDisplay").innerText =
+"IE: " + infinityEnergy.toFixed(0);
 
-    let chtml = "";
+document.getElementById("creators").innerHTML = `
+<div class="item">c1 ${format(creators.c1.amount)}<button onclick="buyCreator(creators.c1)">Buy</button><button onclick="buyMaxCreator(creators.c1)">Max</button></div>
+<div class="item">c2 ${format(creators.c2.amount)}<button onclick="buyCreator(creators.c2)">Buy</button><button onclick="buyMaxCreator(creators.c2)">Max</button></div>
+<div class="item">c3 ${format(creators.c3.amount)}<button onclick="buyCreator(creators.c3)">Buy</button><button onclick="buyMaxCreator(creators.c3)">Max</button></div>
+<div class="item">c4 ${format(creators.c4.amount)}<button onclick="buyCreator(creators.c4)">Buy</button><button onclick="buyMaxCreator(creators.c4)">Max</button></div>
+<div class="item">c5 ${format(creators.c5.amount)}<button onclick="buyCreator(creators.c5)">Buy</button><button onclick="buyMaxCreator(creators.c5)">Max</button></div>
+<div class="item">c6 ${format(creators.c6.amount)}<button onclick="buyCreator(creators.c6)">Buy</button><button onclick="buyMaxCreator(creators.c6)">Max</button></div>
+<div class="item">c7 ${format(creators.c7.amount)}<button onclick="buyCreator(creators.c7)">Buy</button><button onclick="buyMaxCreator(creators.c7)">Max</button></div>
+<div class="item">c8 ${format(creators.c8.amount)}<button onclick="buyCreator(creators.c8)">Buy</button><button onclick="buyMaxCreator(creators.c8)">Max</button></div>
+<div class="item">c9 ${format(creators.c9.amount)}<button onclick="buyCreator(creators.c9)">Buy</button><button onclick="buyMaxCreator(creators.c9)">Max</button></div>
+<div class="item">c10 ${format(creators.c10.amount)}<button onclick="buyCreator(creators.c10)">Buy</button><button onclick="buyMaxCreator(creators.c10)">Max</button></div>
+<div class="item">c11 ${format(creators.c11.amount)}<button onclick="buyCreator(creators.c11)">Buy</button><button onclick="buyMaxCreator(creators.c11)">Max</button></div>
+<div class="item">c12 ${format(creators.c12.amount)}<button onclick="buyCreator(creators.c12)">Buy</button><button onclick="buyMaxCreator(creators.c12)">Max</button></div>
+<div class="item">c13 ${format(creators.c13.amount)}<button onclick="buyCreator(creators.c13)">Buy</button><button onclick="buyMaxCreator(creators.c13)">Max</button></div>
+<div class="item">c14 ${format(creators.c14.amount)}<button onclick="buyCreator(creators.c14)">Buy</button><button onclick="buyMaxCreator(creators.c14)">Max</button></div>
+<div class="item">c15 ${format(creators.c15.amount)}<button onclick="buyCreator(creators.c15)">Buy</button><button onclick="buyMaxCreator(creators.c15)">Max</button></div>
+`;
 
-    const cList = creators;
+document.getElementById("generators").innerHTML = `
+<div class="item">g1 ${format(generators.g1.amount)}<button onclick="buyGenerator(generators.g1)">Buy</button><button onclick="buyMaxGenerator(generators.g1)">Max</button></div>
+<div class="item">g2 ${format(generators.g2.amount)}<button onclick="buyGenerator(generators.g2)">Buy</button><button onclick="buyMaxGenerator(generators.g2)">Max</button></div>
+<div class="item">g3 ${format(generators.g3.amount)}<button onclick="buyGenerator(generators.g3)">Buy</button><button onclick="buyMaxGenerator(generators.g3)">Max</button></div>
+<div class="item">g4 ${format(generators.g4.amount)}<button onclick="buyGenerator(generators.g4)">Buy</button><button onclick="buyMaxGenerator(generators.g4)">Max</button></div>
+<div class="item">g5 ${format(generators.g5.amount)}<button onclick="buyGenerator(generators.g5)">Buy</button><button onclick="buyMaxGenerator(generators.g5)">Max</button></div>
+<div class="item">g6 ${format(generators.g6.amount)}<button onclick="buyGenerator(generators.g6)">Buy</button><button onclick="buyMaxGenerator(generators.g6)">Max</button></div>
+<div class="item">g7 ${format(generators.g7.amount)}<button onclick="buyGenerator(generators.g7)">Buy</button><button onclick="buyMaxGenerator(generators.g7)">Max</button></div>
+<div class="item">g8 ${format(generators.g8.amount)}<button onclick="buyGenerator(generators.g8)">Buy</button><button onclick="buyMaxGenerator(generators.g8)">Max</button></div>
+`;
 
-    const keysC = Object.keys(cList);
-
-    for(let k of keysC){
-        const c = cList[k];
-        chtml += `
-        <div class="item">
-        <b>${k}</b><br>
-        Amount: ${format(c.amount)}<br>
-        Bought: ${c.bought.toFixed(0)}<br>
-        Cost: ${format(c.cost.times(costMultiplier()))}<br>
-        <button onclick="buyCreator(creators['${k}'])">Buy 1</button>
-        <button onclick="buyMaxCreator(creators['${k}'])">Buy Max</button>
-        </div>`;
-    }
-
-    document.getElementById("creators").innerHTML = chtml;
-
-    let ghtml = "";
-
-    const gList = generators;
-    const keysG = Object.keys(gList);
-
-    for(let k of keysG){
-        const g = gList[k];
-        ghtml += `
-        <div class="item">
-        <b>${k}</b><br>
-        Amount: ${format(g.amount)}<br>
-        Bought: ${g.bought.toFixed(0)}<br>
-        Cost: ${format(g.cost)}<br>
-        <button onclick="buyGenerator(generators['${k}'])">Buy 1</button>
-        <button onclick="buyMaxGenerator(generators['${k}'])">Buy Max</button>
-        </div>`;
-    }
-
-    document.getElementById("generators").innerHTML = ghtml;
 }
 
-setInterval(gameTick, 50);
-updateUI();
+/* =========================
+   INIT
+========================= */
+
+openDB();
+setInterval(gameTick,50);
 
 </script>
 
