@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>Creator Dimensions</title>
+<title>Creator Dimensions Rebuild</title>
 
 <script src="https://cdn.jsdelivr.net/npm/decimal.js@10.4.3/decimal.min.js"></script>
 
@@ -20,7 +20,7 @@ body{
     margin-bottom:10px;
 }
 
-.creator{
+.item{
     border:1px solid #333;
     padding:8px;
     margin:5px 0;
@@ -36,10 +36,6 @@ button{
 
 button:hover{
     background:#333;
-}
-
-h1,h2{
-    margin:5px 0;
 }
 </style>
 </head>
@@ -57,10 +53,10 @@ h1,h2{
     <h2>Infinity Energy</h2>
     <div id="ieDisplay"></div>
 
-    <button onclick="buyUpgrade(0)">Infinity Upgrade 1 (Cost: 1 IE)</button>
-    <button onclick="buyUpgrade(1)">Infinity Upgrade 2 (Cost: 5 IE)</button>
-    <button onclick="buyUpgrade(2)">Infinity Upgrade 3 (Cost: 20 IE)</button>
-    <button onclick="buyUpgrade(3)">Infinity Upgrade 4 (Cost: 100 IE)</button>
+    <button onclick="buyUpgrade(0)">Upgrade 1 (1 IE)</button>
+    <button onclick="buyUpgrade(1)">Upgrade 2 (5 IE)</button>
+    <button onclick="buyUpgrade(2)">Upgrade 3 (20 IE)</button>
+    <button onclick="buyUpgrade(3)">Upgrade 4 (100 IE)</button>
 </div>
 
 <div class="panel">
@@ -75,68 +71,47 @@ h1,h2{
 
 <script>
 
-const CREATOR_COUNT = 15;
-const GENERATOR_COUNT = 10;
-
-const creators = [];
-const generators = [];
+const IN_BASE = new Decimal("1e308");
 
 let matter = new Decimal(10);
 let infinityEnergy = new Decimal(0);
 
 const upgrades = [false,false,false,false];
 
-const upgradeCosts = [
-    new Decimal(1),
-    new Decimal(5),
-    new Decimal(20),
-    new Decimal(100)
-];
+const creators = {
+    c1:  {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e1")},
+    c2:  {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e2")},
+    c3:  {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e3")},
+    c4:  {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e4")},
+    c5:  {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e5")},
+    c6:  {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e6")},
+    c7:  {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e7")},
+    c8:  {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e8")},
+    c9:  {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e9")},
+    c10: {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e10")},
+    c11: {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e15")},
+    c12: {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e20")},
+    c13: {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e25")},
+    c14: {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e35")},
+    c15: {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e50")}
+};
 
-const IN_BASE = new Decimal("1e308");
-
-for(let i=0;i<CREATOR_COUNT;i++){
-
-    let cost;
-
-    if(i === CREATOR_COUNT - 1){
-        cost = new Decimal("1e100");
-    }else{
-        cost = Decimal.pow(10,i+1);
-    }
-
-    creators.push({
-        amount:new Decimal(0),
-        bought:new Decimal(0),
-        cost:cost
-    });
-}
-
-for(let i=0;i<GENERATOR_COUNT;i++){
-
-    let cost;
-
-    if(i === GENERATOR_COUNT - 1){
-        cost = new Decimal("1e40");
-    }else{
-        cost = Decimal.pow(10,i+1);
-    }
-
-    generators.push({
-        amount:new Decimal(0),
-        bought:new Decimal(0),
-        cost:cost
-    });
-}
+const generators = {
+    g1: {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e1")},
+    g2: {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e2")},
+    g3: {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e4")},
+    g4: {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e6")},
+    g5: {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e10")},
+    g6: {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e15")},
+    g7: {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e25")},
+    g8: {amount:new Decimal(0), bought:new Decimal(0), cost:new Decimal("1e40")}
+};
 
 function format(x){
-
     x = new Decimal(x);
-
     if(x.eq(0)) return "0";
     if(x.lt(IN_BASE)) return x.toExponential(3);
-
-    return x.div(IN_BASE).toExponential(3)+" In";
+    return x.div(IN_BASE).toExponential(3) + " In";
 }
 
 function getInAmount(){
@@ -144,129 +119,109 @@ function getInAmount(){
 }
 
 function gainInfinityEnergy(){
-
     const inAmount = getInAmount();
-
     if(inAmount.lt(10)) return;
 
     const gain = Decimal.floor(Decimal.log10(inAmount));
-
-    if(gain.gt(infinityEnergy)){
-        infinityEnergy = gain;
-    }
-}
-
-function buyCreator(id){
-
-    if(matter.gte(creators[id].cost)){
-
-        matter = matter.minus(creators[id].cost);
-
-        creators[id].amount = creators[id].amount.plus(1);
-        creators[id].bought = creators[id].bought.plus(1);
-
-        creators[id].cost = creators[id].cost.times(1.5);
-    }
-}
-
-function buyMaxCreator(id){
-
-    while(matter.gte(creators[id].cost)){
-
-        matter = matter.minus(creators[id].cost);
-
-        creators[id].amount = creators[id].amount.plus(1);
-        creators[id].bought = creators[id].bought.plus(1);
-
-        creators[id].cost = creators[id].cost.times(1.5);
-    }
-}
-
-function buyGenerator(id){
-
-    if(matter.gte(generators[id].cost)){
-
-        matter = matter.minus(generators[id].cost);
-
-        generators[id].amount = generators[id].amount.plus(1);
-        generators[id].bought = generators[id].bought.plus(1);
-
-        generators[id].cost = generators[id].cost.times(1.6);
-    }
-}
-
-function buyMaxGenerator(id){
-
-    while(matter.gte(generators[id].cost)){
-
-        matter = matter.minus(generators[id].cost);
-
-        generators[id].amount = generators[id].amount.plus(1);
-        generators[id].bought = generators[id].bought.plus(1);
-
-        generators[id].cost = generators[id].cost.times(1.6);
-    }
-}
-
-function buyUpgrade(id){
-
-    if(upgrades[id]) return;
-
-    if(infinityEnergy.gte(upgradeCosts[id])){
-
-        infinityEnergy = infinityEnergy.minus(upgradeCosts[id]);
-        upgrades[id] = true;
-    }
+    if(gain.gt(infinityEnergy)) infinityEnergy = gain;
 }
 
 function creatorMultiplier(){
-
-    let mult = new Decimal(1);
-
-    if(upgrades[0]) mult = mult.times(2);
-    if(upgrades[2]) mult = mult.times(10);
-
-    if(upgrades[3]){
-        mult = mult.times(Decimal.max(1, infinityEnergy.pow(2)));
-    }
-
-    return mult;
+    let m = new Decimal(1);
+    if(upgrades[0]) m = m.times(2);
+    if(upgrades[2]) m = m.times(10);
+    if(upgrades[3]) m = m.times(Decimal.max(1,infinityEnergy.pow(2)));
+    return m;
 }
 
 function costMultiplier(){
-
-    let mult = new Decimal(1);
-    if(upgrades[1]) mult = mult.times(0.5);
-    return mult;
+    return upgrades[1] ? new Decimal(0.5) : new Decimal(1);
 }
 
+/* BUY FUNCTIONS */
+function buyCreator(c){
+    if(matter.gte(c.cost)){
+        matter = matter.minus(c.cost);
+        c.amount = c.amount.plus(1);
+        c.bought = c.bought.plus(1);
+        c.cost = c.cost.times(1.35);
+    }
+}
+
+function buyMaxCreator(c){
+    while(matter.gte(c.cost)){
+        matter = matter.minus(c.cost);
+        c.amount = c.amount.plus(1);
+        c.bought = c.bought.plus(1);
+        c.cost = c.cost.times(1.35);
+    }
+}
+
+function buyGenerator(g){
+    if(matter.gte(g.cost)){
+        matter = matter.minus(g.cost);
+        g.amount = g.amount.plus(1);
+        g.bought = g.bought.plus(1);
+        g.cost = g.cost.times(1.4);
+    }
+}
+
+function buyMaxGenerator(g){
+    while(matter.gte(g.cost)){
+        matter = matter.minus(g.cost);
+        g.amount = g.amount.plus(1);
+        g.bought = g.bought.plus(1);
+        g.cost = g.cost.times(1.4);
+    }
+}
+
+function buyUpgrade(i){
+    const costs = [1,5,20,100];
+    if(upgrades[i]) return;
+    if(infinityEnergy.gte(costs[i])){
+        infinityEnergy = infinityEnergy.minus(costs[i]);
+        upgrades[i] = true;
+    }
+}
+
+/* GAME LOOP */
 function gameTick(){
 
-    const mult = creatorMultiplier();
+    const m = creatorMultiplier();
 
-    for(let i=CREATOR_COUNT-1;i>=1;i--){
+    // generators -> creators
+    creators.c15.amount = creators.c15.amount.plus(generators.g8.amount.times(m).times(0.01));
+    creators.c14.amount = creators.c14.amount.plus(generators.g7.amount.times(m).times(0.01));
+    creators.c13.amount = creators.c13.amount.plus(generators.g6.amount.times(m).times(0.01));
+    creators.c12.amount = creators.c12.amount.plus(generators.g5.amount.times(m).times(0.01));
+    creators.c11.amount = creators.c11.amount.plus(generators.g4.amount.times(m).times(0.01));
+    creators.c10.amount = creators.c10.amount.plus(generators.g3.amount.times(m).times(0.01));
+    creators.c9.amount  = creators.c9.amount.plus(generators.g2.amount.times(m).times(0.01));
+    creators.c8.amount  = creators.c8.amount.plus(generators.g1.amount.times(m).times(0.01));
 
-        const production =
-            creators[i].amount
-            .times(mult)
-            .times(0.1);
+    // creators chain
+    creators.c1.amount = creators.c1.amount.plus(creators.c2.amount.times(m).times(0.1));
+    creators.c2.amount = creators.c2.amount.plus(creators.c3.amount.times(m).times(0.1));
+    creators.c3.amount = creators.c3.amount.plus(creators.c4.amount.times(m).times(0.1));
+    creators.c4.amount = creators.c4.amount.plus(creators.c5.amount.times(m).times(0.1));
+    creators.c5.amount = creators.c5.amount.plus(creators.c6.amount.times(m).times(0.1));
+    creators.c6.amount = creators.c6.amount.plus(creators.c7.amount.times(m).times(0.1));
+    creators.c7.amount = creators.c7.amount.plus(creators.c8.amount.times(m).times(0.1));
+    creators.c8.amount = creators.c8.amount.plus(creators.c9.amount.times(m).times(0.1));
+    creators.c9.amount = creators.c9.amount.plus(creators.c10.amount.times(m).times(0.1));
+    creators.c10.amount = creators.c10.amount.plus(creators.c11.amount.times(m).times(0.1));
+    creators.c11.amount = creators.c11.amount.plus(creators.c12.amount.times(m).times(0.1));
+    creators.c12.amount = creators.c12.amount.plus(creators.c13.amount.times(m).times(0.1));
+    creators.c13.amount = creators.c13.amount.plus(creators.c14.amount.times(m).times(0.1));
+    creators.c14.amount = creators.c14.amount.plus(creators.c15.amount.times(m).times(0.1));
 
-        creators[i-1].amount =
-            creators[i-1].amount.plus(production);
-    }
-
-    const matterGain =
-        creators[0].amount
-        .times(mult)
-        .times(0.1);
-
-    matter = matter.plus(matterGain);
+    matter = matter.plus(creators.c1.amount.times(m).times(0.1));
 
     gainInfinityEnergy();
-
     updateUI();
 }
 
+/* UI */
 function updateUI(){
 
     document.getElementById("matter").innerText =
@@ -278,40 +233,43 @@ function updateUI(){
     document.getElementById("ieDisplay").innerText =
         "IE: " + infinityEnergy.toFixed(0);
 
-    let html = "";
+    let chtml = "";
 
-    for(let i=0;i<CREATOR_COUNT;i++){
+    const cList = creators;
 
-        html += `
-        <div class="creator">
-            <b>Creator ${i+1}</b><br>
-            Amount: ${format(creators[i].amount)}<br>
-            Bought: ${creators[i].bought.toFixed(0)}<br>
-            Cost: ${format(creators[i].cost.times(costMultiplier()))}<br>
+    const keysC = Object.keys(cList);
 
-            <button onclick="buyCreator(${i})">Buy 1</button>
-            <button onclick="buyMaxCreator(${i})">Buy Max</button>
-        </div>
-        `;
+    for(let k of keysC){
+        const c = cList[k];
+        chtml += `
+        <div class="item">
+        <b>${k}</b><br>
+        Amount: ${format(c.amount)}<br>
+        Bought: ${c.bought.toFixed(0)}<br>
+        Cost: ${format(c.cost.times(costMultiplier()))}<br>
+        <button onclick="buyCreator(creators['${k}'])">Buy 1</button>
+        <button onclick="buyMaxCreator(creators['${k}'])">Buy Max</button>
+        </div>`;
     }
 
-    document.getElementById("creators").innerHTML = html;
+    document.getElementById("creators").innerHTML = chtml;
 
     let ghtml = "";
 
-    for(let i=0;i<GENERATOR_COUNT;i++){
+    const gList = generators;
+    const keysG = Object.keys(gList);
 
+    for(let k of keysG){
+        const g = gList[k];
         ghtml += `
-        <div class="creator">
-            <b>Generator ${i+1}</b><br>
-            Amount: ${format(generators[i].amount)}<br>
-            Bought: ${generators[i].bought.toFixed(0)}<br>
-            Cost: ${format(generators[i].cost)}<br>
-
-            <button onclick="buyGenerator(${i})">Buy 1</button>
-            <button onclick="buyMaxGenerator(${i})">Buy Max</button>
-        </div>
-        `;
+        <div class="item">
+        <b>${k}</b><br>
+        Amount: ${format(g.amount)}<br>
+        Bought: ${g.bought.toFixed(0)}<br>
+        Cost: ${format(g.cost)}<br>
+        <button onclick="buyGenerator(generators['${k}'])">Buy 1</button>
+        <button onclick="buyMaxGenerator(generators['${k}'])">Buy Max</button>
+        </div>`;
     }
 
     document.getElementById("generators").innerHTML = ghtml;
