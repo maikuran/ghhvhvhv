@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>Creator Dimensions</title>
+<script src="https://cdn.jsdelivr.net/npm/decimal.js@10.4.3/decimal.min.js"></script>
+<style>
+body{background:#111;color:#eee;font-family:sans-serif;margin:20px}
+.card{border:1px solid #444;padding:8px;margin:8px 0}
+button{margin:2px}
+</style>
+</head>
+<body>
+<h1>Creator Dimensions</h1>
+
+<div class="card">
+<div id="matter"></div>
+<div id="inAmount"></div>
+<div id="ie"></div>
+</div>
+
+<h2>Creators</h2>
+<div id="creators"></div>
+
+<h2>Infinity Generators</h2>
+<div id="igs"></div>
+
+<script>
+const IN_BASE=new Decimal("1e308");
+let matter=new Decimal(10);
+let infinityEnergy=new Decimal(0);
+
+const creators=[];
+const igs=[];
+
+const creatorCosts=[
+"1e1","1e2","1e4","1e6","1e8",
+"1e11","1e14","1e17","1e20","1e24",
+"1e28","1e32","1e36","1e38","1e40"
+];
+
+const igCosts=[
+"1e0","1e2","1e5","1e10",
+"1e15","1e20","1e25","1e30"
+];
+
+for(let i=0;i<15;i++){
+ creators.push({
+  amount:new Decimal(0),
+  bought:new Decimal(0),
+  cost:new Decimal(creatorCosts[i])
+ });
+}
+
+for(let i=0;i<8;i++){
+ igs.push({
+  amount:new Decimal(0),
+  bought:new Decimal(0),
+  cost:new Decimal(igCosts[i])
+ });
+}
+
+function fmt(x){
+ x=new Decimal(x);
+ if(x.eq(0)) return "0";
+ if(x.lt(IN_BASE)) return x.toExponential(3);
+ return x.div(IN_BASE).toExponential(3)+" In";
+}
+
+function buyCreator(i){
+ if(matter.gte(creators[i].cost)){
+  matter=matter.minus(creators[i].cost);
+  creators[i].amount=creators[i].amount.plus(1);
+  creators[i].bought=creators[i].bought.plus(1);
+  creators[i].cost=creators[i].cost.times(1.5);
+ }
+}
+
+function buyIG(i){
+ if(infinityEnergy.gte(igs[i].cost)){
+  infinityEnergy=infinityEnergy.minus(igs[i].cost);
+  igs[i].amount=igs[i].amount.plus(1);
+  igs[i].bought=igs[i].bought.plus(1);
+  igs[i].cost=igs[i].cost.times(10);
+ }
+}
+
+function tick(){
+ for(let i=14;i>=1;i--){
+  creators[i-1].amount=creators[i-1].amount.plus(
+   creators[i].amount.times(0.05)
+  );
+ }
+
+ matter=matter.plus(
+  creators[0].amount.times(0.1)
+ );
+
+ const inAmt=matter.div(IN_BASE);
+
+ if(inAmt.gte(1)){
+  infinityEnergy=infinityEnergy.plus(
+   inAmt.logarithm(10).plus(1).times(0.001)
+  );
+ }
+
+ for(let i=7;i>=1;i--){
+  igs[i-1].amount=igs[i-1].amount.plus(
+   igs[i].amount.times(0.02)
+  );
+ }
+
+ infinityEnergy=infinityEnergy.plus(
+  igs[0].amount.times(0.05)
+ );
+
+ updateUI();
+}
+
+function updateUI(){
+ document.getElementById("matter").textContent="Matter: "+fmt(matter);
+ document.getElementById("inAmount").textContent="In: "+fmt(matter.div(IN_BASE));
+ document.getElementById("ie").textContent="Infinity Energy: "+fmt(infinityEnergy);
+
+ let chtml="";
+ for(let i=0;i<15;i++){
+  chtml+=`
+  <div class="card">
+  Creator ${i+1}<br>
+  Amount: ${fmt(creators[i].amount)}<br>
+  Cost: ${fmt(creators[i].cost)}<br>
+  <button onclick="buyCreator(${i})">Buy</button>
+  </div>`;
+ }
+ document.getElementById("creators").innerHTML=chtml;
+
+ let ightml="";
+ for(let i=0;i<8;i++){
+  ightml+=`
+  <div class="card">
+  Infinity Generator ${i+1}<br>
+  Amount: ${fmt(igs[i].amount)}<br>
+  Cost: ${fmt(igs[i].cost)} IE<br>
+  <button onclick="buyIG(${i})">Buy</button>
+  </div>`;
+ }
+ document.getElementById("igs").innerHTML=ightml;
+}
+
+function serialize(){
+ return {
+  matter:matter.toString(),
+  infinityEnergy:infinityEnergy.toString(),
+  creators:creators.map(x=>({
+   amount:x.amount.toString(),
+   bought:x.bought.toString(),
+   cost:x.cost.toString()
+  })),
+  igs:igs.map(x=>({
+   amount:x.amount.toString(),
+   bought:x.bought.toString(),
+   cost:x.cost.toString()
+  })),
+  lastSave:Date.now()
+ };
+}
+
+function openDB(){
+ return new Promise((resolve,reject)=>{
+  const req=indexedDB.open("CreatorDimensionsDB",1);
+  req.onupgradeneeded=e=>{
+   e.target.result.createObjectStore("saves");
+  };
+  req.onsuccess=e=>resolve(e.target.result);
+  req.onerror=e=>reject(e);
+ });
+}
+
+async function saveGame(){
+ const db=await openDB();
+ const tx=db.transaction("saves","readwrite");
+ tx.objectStore("saves").put(serialize(),"main");
+}
+
+async function loadGame(){
+ const db=await openDB();
+ const tx=db.transaction("saves","readonly");
+ const req=tx.objectStore("saves").get("main");
+
+ req.onsuccess=()=>{
+  const s=req.result;
+  if(!s) return;
+
+  matter=new Decimal(s.matter);
+  infinityEnergy=new Decimal(s.infinityEnergy);
+
+  for(let i=0;i<15;i++){
+   creators[i].amount=new Decimal(s.creators[i].amount);
+   creators[i].bought=new Decimal(s.creators[i].bought);
+   creators[i].cost=new Decimal(s.creators[i].cost);
+  }
+
+  for(let i=0;i<8;i++){
+   igs[i].amount=new Decimal(s.igs[i].amount);
+   igs[i].bought=new Decimal(s.igs[i].bought);
+   igs[i].cost=new Decimal(s.igs[i].cost);
+  }
+
+  const offline=Math.min(
+   (Date.now()-s.lastSave)/1000,
+   86400
+  );
+
+  for(let i=0;i<offline*20;i++){
+   tick();
+  }
+ };
+}
+
+loadGame();
+setInterval(tick,50);
+setInterval(saveGame,5000);
+</script>
+</body>
+</html>
